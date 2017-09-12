@@ -36,6 +36,7 @@
 
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <CFNetwork/CFNetwork.h>
+#import <StoreKit/StoreKit.h>
 #import "Appirater.h"
 #include <netinet/in.h>
 
@@ -654,20 +655,27 @@ static BOOL _alwaysUseMainBundle = NO;
 		#if TARGET_IPHONE_SIMULATOR
 		NSLog(@"APPIRATER NOTE: iTunes App Store is not supported on the iOS simulator. Unable to open App Store page.");
 		#else
-		NSString *reviewURL = [templateReviewURL stringByReplacingOccurrencesOfString:@"APP_ID" withString:[NSString stringWithFormat:@"%@", _appId]];
 
-		// iOS 7 needs a different templateReviewURL @see https://github.com/arashpayan/appirater/issues/131
-        // Fixes condition @see https://github.com/arashpayan/appirater/issues/205
-		if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0 && [[[UIDevice currentDevice] systemVersion] floatValue] < 8.0) {
-			reviewURL = [templateReviewURLiOS7 stringByReplacingOccurrencesOfString:@"APP_ID" withString:[NSString stringWithFormat:@"%@", _appId]];
-		}
-        // iOS 8 needs a different templateReviewURL also @see https://github.com/arashpayan/appirater/issues/182
-        else if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 8.0)
-        {
-            reviewURL = [templateReviewURLiOS8 stringByReplacingOccurrencesOfString:@"APP_ID" withString:[NSString stringWithFormat:@"%@", _appId]];
+        // iOS 10.3 needs to use User's Ratings and Reviews API from StoreKit framework
+        if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 10.3) {
+            [SKStoreReviewController requestReview];
+        } else {
+            NSString *desiredTemplateReviewURL = templateReviewURL;
+            
+            // iOS 8 needs a different templateReviewURL also @see https://github.com/arashpayan/appirater/issues/182
+            if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 8.0) {
+                desiredTemplateReviewURL = templateReviewURLiOS8;
+            }
+            // iOS 7 needs a different templateReviewURL @see https://github.com/arashpayan/appirater/issues/131
+            // Fixes condition @see https://github.com/arashpayan/appirater/issues/205
+            else if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0) {
+                desiredTemplateReviewURL = templateReviewURLiOS7;
+            }
+
+            NSString *reviewURL = [desiredTemplateReviewURL stringByReplacingOccurrencesOfString:@"APP_ID" withString:[NSString stringWithFormat:@"%@", _appId]];
+
+            if (reviewURL) [[UIApplication sharedApplication] openURL:[NSURL URLWithString:reviewURL]];
         }
-
-		[[UIApplication sharedApplication] openURL:[NSURL URLWithString:reviewURL]];
 		#endif
 	}
 }
